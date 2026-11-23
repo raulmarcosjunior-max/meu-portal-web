@@ -23,7 +23,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 titulo TEXT NOT NULL,
                 slug TEXT UNIQUE NOT NULL,
-                categoria TEXT DEFAULT 'Legislação Tributária',
+                categoria TEXT DEFAULT 'Legislação Tributária Estadual',
                 resumo TEXT,
                 conteudo TEXT NOT NULL,
                 link_externo TEXT,
@@ -41,7 +41,6 @@ def init_db():
                 aviso_geral TEXT
             )
         """)
-    # Insere os dados iniciais padrão da SEFAZ-AL se ainda não existirem
     existe = conn.execute("SELECT 1 FROM info_concurso WHERE id = 1").fetchone()
     if not existe:
       conn.execute(
@@ -51,13 +50,13 @@ def init_db():
             """,
           (
               "Secretaria de Estado da Fazenda de Alagoas (SEFAZ-AL)",
-              "Auditor Fiscal da Receita Estadual e Auditor de Finanças e"
+              "Auditor Fiscal da Receita Estadual / Auditor de Finanças e"
               " Controle",
-              "Em preparação / Aguardando definição (Última banca: Cebraspe)",
-              "A partir de R$ 9.500,00 + Produtividade / Gratificações",
+              "Prova Objetiva: 160 itens (P1: 60 itens | P2: 100 itens)",
+              "A partir de R\$ 9.500,00 + Produtividade / Gratificações",
               "Nível Superior em qualquer área de formação",
-              "Clique em 'Área de Edição' e depois em 'Editar Painel' para"
-              " atualizar datas, comissão ou links do edital.",
+              "Clique em uma disciplina na tabela abaixo para filtrar os"
+              " resumos e links cadastrados daquela matéria.",
           ),
       )
 
@@ -110,7 +109,6 @@ BASE_HTML = """
         }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
         
-        /* Faixa tricolor discreta inspirada na bandeira de Alagoas */
         .faixa-alagoas { height: 5px; background: linear-gradient(90deg, var(--al-vermelho) 33.3%, #ffffff 33.3%, #ffffff 66.6%, var(--al-azul) 66.6%); }
         
         header { background: linear-gradient(135deg, var(--al-azul-escuro), var(--al-azul)); color: white; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
@@ -132,17 +130,31 @@ BASE_HTML = """
         
         .container { max-width: 1100px; margin: 24px auto; padding: 0 20px; }
         
-        /* Painel Superior de Informações do Concurso SEFAZ-AL */
-        .painel-concurso { background: white; border-radius: 10px; border: 1px solid #cbd5e1; border-top: 4px solid var(--al-azul); padding: 22px 24px; margin-bottom: 26px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+        /* Painel Superior de Informações do Concurso */
+        .painel-concurso { background: white; border-radius: 10px; border: 1px solid #cbd5e1; border-top: 4px solid var(--al-azul); padding: 22px 24px; margin-bottom: 22px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
         .painel-topo { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
         .painel-topo h2 { margin: 0; font-size: 18px; color: var(--al-azul-escuro); display: flex; align-items: center; gap: 8px; }
         .tag-estado { background: var(--al-vermelho); color: white; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 700; }
         
-        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
         .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; }
         .info-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--al-azul); letter-spacing: 0.4px; margin-bottom: 4px; }
-        .info-valor { font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.4; }
+        .info-valor { font-size: 13.5px; font-weight: 600; color: #1e293b; line-height: 1.4; }
         .aviso-concurso { margin-top: 14px; background: #eff6ff; border-left: 4px solid var(--al-azul); padding: 10px 14px; font-size: 13px; color: #1e3a8a; border-radius: 0 6px 6px 0; }
+
+        /* Quadro de Peso e Distribuição das Disciplinas */
+        .quadro-disciplinas { background: white; border-radius: 10px; border: 1px solid #cbd5e1; padding: 22px 24px; margin-bottom: 26px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); overflow-x: auto; }
+        .quadro-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+        .quadro-header h2 { margin: 0; font-size: 19px; color: #1e293b; font-weight: 600; }
+        .tabela-edital { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px; }
+        .tabela-edital thead th { text-align: left; padding: 12px 10px; color: #475569; font-weight: 600; border-bottom: 1.5px solid #94a3b8; font-size: 13.5px; }
+        .tabela-edital tbody td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; color: #1e293b; vertical-align: middle; }
+        .tabela-edital tbody tr:hover { background-color: #f8fafc; }
+        .tabela-edital tbody tr.destaque-materia td { font-weight: 700; color: #0f172a; }
+        .tabela-edital tbody tr.divisor-p2 td { border-top: 1.5px solid #cbd5e1; }
+        .link-disc { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        .link-disc:hover { color: var(--al-azul); text-decoration: underline; }
+        .pill-num { display: inline-flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; font-weight: 600; margin-left: 6px; }
 
         .busca-bar { display: flex; gap: 10px; margin-bottom: 20px; }
         .busca-bar input { flex: 1; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; background: white; }
@@ -157,7 +169,7 @@ BASE_HTML = """
         
         .box-form { background: white; padding: 28px; border-radius: 10px; border: 1px solid #e2e8f0; max-width: 850px; margin: 0 auto; }
         label { display: block; font-weight: 600; margin-top: 14px; margin-bottom: 5px; font-size: 13px; }
-        input[type="text"], input[type="password"], input[type="url"] { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+        input[type="text"], input[type="password"], input[type="url"], select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box; font-family: inherit; background: white; }
         
         #editor-container { height: 380px; font-size: 15px; font-family: 'Segoe UI', Arial, sans-serif; background: white; }
         .ql-toolbar.ql-snow { border-top-left-radius: 6px; border-top-right-radius: 6px; background: #f8fafc; border-color: #cbd5e1; }
@@ -204,6 +216,18 @@ BASE_HTML = """
             alert('Link direto copiado: ' + url);
         }
 
+        function alternarQuadro() {
+            const tabela = document.getElementById('corpo-quadro-edital');
+            const btn = document.getElementById('btn-toggle-quadro');
+            if (tabela.style.display === 'none') {
+                tabela.style.display = 'block';
+                btn.innerText = 'Ocultar Quadro';
+            } else {
+                tabela.style.display = 'none';
+                btn.innerText = 'Mostrar Quadro';
+            }
+        }
+
         const editorDiv = document.getElementById('editor-container');
         if (editorDiv) {
             const quill = new Quill('#editor-container', {
@@ -236,6 +260,53 @@ BASE_HTML = """
 </body>
 </html>
 """
+
+DISCIPLINAS_EDITAL = [
+    (
+        "P1 – Básicos (60 itens)",
+        "Matemática Financeira",
+        "5",
+        "8,3% de P1",
+        False,
+        False,
+    ),
+    ("", "Direito Constitucional", "5", "8,3% de P1", False, False),
+    ("", "Direito Administrativo", "5", "8,3% de P1", False, False),
+    ("", "Contabilidade Geral", "5", "8,3% de P1", False, False),
+    ("", "Direito Tributário", "10", "16,7% de P1", False, False),
+    ("", "Estatística e Probabilidade", "10", "16,7% de P1", False, False),
+    ("", "Contabilidade Pública", "10", "16,7% de P1", False, False),
+    ("", "Economia", "10", "16,7% de P1", False, False),
+    (
+        "P2 – Específicos (100 itens)",
+        "Finanças Públicas",
+        "10",
+        "10% de P2",
+        False,
+        True,
+    ),
+    ("", "Legislação Tributária Estadual", "10", "10% de P2", False, False),
+    ("", "Inteligência Artificial", "10", "10% de P2", True, False),
+    ("", "Desenvolvimento de Sistemas", "10", "10% de P2", False, False),
+    (
+        "",
+        "Infraestrutura de TIC e Segurança da Informação",
+        "10",
+        "10% de P2",
+        False,
+        False,
+    ),
+    ("", "Reforma Tributária", "15", "15% de P2", False, False),
+    ("", "Auditoría Fiscal", "15", "15% de P2", False, False),
+    (
+        "",
+        "Ciência de Dados",
+        "20",
+        "20% de P2 (Maior peso isolado)",
+        True,
+        False,
+    ),
+]
 
 
 @app.route("/")
@@ -287,7 +358,7 @@ def index():
                 <div class="info-valor">{info['cargos']}</div>
             </div>
             <div class="info-box">
-                <div class="info-label">Status / Banca</div>
+                <div class="info-label">Estrutura / Banca</div>
                 <div class="info-valor">{info['banca_status']}</div>
             </div>
             <div class="info-box">
@@ -305,19 +376,76 @@ def index():
     </div>
     """
 
+  # Monta as linhas da tabela idêntica à imagem
+  linhas_tabela = ""
+  for (
+      prova,
+      disciplina,
+      qtd,
+      part,
+      destaque,
+      divisor_p2,
+  ) in DISCIPLINAS_EDITAL:
+    classes = []
+    if destaque:
+      classes.append("destaque-materia")
+    if divisor_p2:
+      classes.append("divisor-p2")
+    class_attr = f' class="{" ".join(classes)}"' if classes else ""
+
+    prova_html = f"<strong>{prova}</strong>" if prova else ""
+    nome_clean = disciplina.replace("Auditoría", "Auditoria")
+    linhas_tabela += f"""
+        <tr{class_attr}>
+            <td>{prova_html}</td>
+            <td><a href="/?cat={nome_clean}#materiais" class="link-disc" title="Filtrar materiais de {nome_clean}">{nome_clean}</a></td>
+            <td>{qtd}</td>
+            <td>{part} <span class="pill-num">1</span></td>
+        </tr>
+        """
+
+  quadro_html = f"""
+    <div class="quadro-disciplinas">
+        <div class="quadro-header">
+            <h2>Quadro de Peso e Distribuição das Disciplinas nas Provas Objetivas</h2>
+            <button type="button" id="btn-toggle-quadro" class="btn btn-copy" onclick="alternarQuadro()">Ocultar Quadro</button>
+        </div>
+        <div id="corpo-quadro-edital">
+            <table class="tabela-edital">
+                <thead>
+                    <tr>
+                        <th style="width: 22%;">Prova</th>
+                        <th style="width: 40%;">Disciplina</th>
+                        <th style="width: 13%;">N.º de Itens</th>
+                        <th style="width: 25%;">Participação na Prova Específica / Geral</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {linhas_tabela}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    """
+
   pills = (
-      '<div style="margin-bottom: 18px; display:flex; gap:8px; flex-wrap:wrap;'
-      ' align-items:center;">'
+      '<div id="materiais" style="margin-bottom: 18px; display:flex; gap:8px;'
+      ' flex-wrap:wrap; align-items:center;">'
   )
   pills += (
       '<span style="font-size:13px; font-weight:700; color:#475569;'
-      ' margin-right:4px;">Disciplinas / Pastas:</span>'
+      ' margin-right:4px;">Filtrar Materiais:</span>'
   )
-  pills += '<a href="/" class="btn btn-copy">Todos</a>'
+  pills += '<a href="/#materiais" class="btn btn-copy">Todos</a>'
   for c in categorias:
     pills += (
-        f'<a href="/?cat={c["categoria"]}" class="btn'
+        f'<a href="/?cat={c["categoria"]}#materiais" class="btn'
         f' btn-copy">{c["categoria"]}</a>'
+    )
+  if cat:
+    pills += (
+        f'<span style="font-size:13px; color:#004a99; font-weight:700;">(Exibindo:'
+        f' {cat})</span>'
     )
   pills += "</div>"
 
@@ -361,14 +489,16 @@ def index():
 
   if not cards_html:
     cards_html = (
-        "<p>Nenhum material cadastrado ainda. Clique em <strong>Área de"
-        " Edição</strong> no topo para inserir suas matérias da SEFAZ-AL.</p>"
+        "<p>Nenhum material cadastrado ainda para este filtro. Clique em"
+        " <strong>Área de Edição</strong> no topo para inserir suas matérias da"
+        " SEFAZ-AL.</p>"
     )
 
   corpo = f"""
     {painel_html}
-    <form class="busca-bar" method="GET" action="/">
-        <input type="text" name="q" value="{busca}" placeholder="Pesquisar em Legislação Tributária, Auditoria, Contabilidade, Links...">
+    {quadro_html}
+    <form class="busca-bar" method="GET" action="/#materiais">
+        <input type="text" name="q" value="{busca}" placeholder="Pesquisar em Ciência de Dados, Reforma Tributária, Auditoria Fiscal, Legislação...">
         <button type="submit" class="btn btn-primary">Buscar</button>
     </form>
     {pills}
@@ -412,7 +542,7 @@ def editar_painel():
             <label>Cargos:</label>
             <input type="text" name="cargos" value="{info['cargos']}" required>
 
-            <label>Status / Banca Organizadora:</label>
+            <label>Estrutura / Banca Organizadora:</label>
             <input type="text" name="banca_status" value="{info['banca_status']}" required>
 
             <label>Remuneração:</label>
@@ -431,208 +561,3 @@ def editar_painel():
   return render_template_string(
       BASE_HTML, titulo_pagina="Editar Painel SEFAZ-AL", corpo=corpo
   )
-
-
-@app.route("/p/<slug>")
-def ver_item(slug):
-  with get_db() as conn:
-    item = conn.execute(
-        "SELECT * FROM itens WHERE slug = ?", (slug,)
-    ).fetchone()
-  if not item:
-    return "Página não encontrada.", 404
-
-  url_direta = request.host_url.rstrip("/") + url_for(
-      "ver_item", slug=item["slug"]
-  )
-  acoes = (
-      '<button type="button" class="btn btn-copy"'
-      f" onclick=\"copiarLink('{url_direta}')\">Copiar Link desta"
-      " Página</button>"
-  )
-  if item["link_externo"]:
-    acoes += (
-        f' <a href="{item["link_externo"]}" target="_blank" class="btn'
-        ' btn-primary">Acessar Link Externo ↗</a>'
-    )
-  if session.get("logado"):
-    acoes += (
-        f' <a href="/editar/{item["id"]}" class="btn btn-copy">Editar'
-        " Conteúdo</a>"
-    )
-
-  corpo = f"""
-    <div style="margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <div>
-            <span class="badge">{item['categoria']}</span>
-            <h1 style="margin:4px 0; color:#002d62;">{item['titulo']}</h1>
-            <small style="color:#64748b;">Link direto: <code>{url_direta}</code></small>
-        </div>
-        <div>{acoes}</div>
-    </div>
-    <div class="conteudo-leitura">{item['conteudo']}</div>
-    """
-  return render_template_string(
-      BASE_HTML, titulo_pagina=item["titulo"], corpo=corpo
-  )
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-  if request.method == "POST":
-    if request.form.get("senha") == SENHA_ADMIN:
-      session["logado"] = True
-      return redirect(url_for("index"))
-    flash("Senha incorreta.")
-  corpo = """
-    <div class="box-form" style="max-width:400px;">
-        <h2>Acesso Administrativo • SEFAZ-AL</h2>
-        <form method="POST">
-            <label>Senha de Edição:</label>
-            <input type="password" name="senha" required autofocus>
-            <button type="submit" class="btn btn-primary" style="margin-top:16px; width:100%;">Entrar</button>
-        </form>
-    </div>
-    """
-  return render_template_string(BASE_HTML, titulo_pagina="Login", corpo=corpo)
-
-
-@app.route("/logout")
-def logout():
-  session.clear()
-  return redirect(url_for("index"))
-
-
-@app.route("/novo", methods=["GET", "POST"])
-@admin_required
-def novo():
-  if request.method == "POST":
-    titulo = request.form.get("titulo", "").strip()
-    categoria = (
-        request.form.get("categoria", "Legislação Tributária").strip()
-        or "Legislação Tributária"
-    )
-    resumo = request.form.get("resumo", "").strip()
-    conteudo = request.form.get("conteudo", "").strip()
-    link_externo = request.form.get("link_externo", "").strip()
-    slug_base = gerar_slug(request.form.get("slug") or titulo)
-
-    with get_db() as conn:
-      slug = slug_base
-      contador = 2
-      while conn.execute(
-          "SELECT 1 FROM itens WHERE slug = ?", (slug,)
-      ).fetchone():
-        slug = f"{slug_base}-{contador}"
-        contador += 1
-
-      conn.execute(
-          "INSERT INTO itens (titulo, slug, categoria, resumo, conteudo,"
-          " link_externo) VALUES (?, ?, ?, ?, ?, ?)",
-          (titulo, slug, categoria, resumo, conteudo, link_externo),
-      )
-    flash("Material publicado com sucesso!")
-    return redirect(url_for("ver_item", slug=slug))
-
-  corpo = """
-    <div class="box-form">
-        <h2>Cadastrar Novo Material • SEFAZ-AL</h2>
-        <form method="POST">
-            <label>Título:</label>
-            <input type="text" name="titulo" placeholder="Ex: Lei Estadual nº 5.900/96 - ICMS Alagoas" required>
-
-            <label>Link personalizado (opcional - ex: icms-alagoas):</label>
-            <input type="text" name="slug" placeholder="Deixe em branco para gerar automaticamente pelo título">
-
-            <label>Disciplina / Categoria:</label>
-            <input type="text" name="categoria" value="Legislação Tributária" placeholder="Ex: Legislação Tributária, Auditoria, Contabilidade, Direito Constitucional">
-
-            <label>Resumo curto (aparece no cartão da página inicial):</label>
-            <input type="text" name="resumo" placeholder="Breve descrição do conteúdo">
-
-            <label>Link externo de destino (opcional - ex: lei no portal da SEFAZ-AL ou caderno de questões):</label>
-            <input type="url" name="link_externo" placeholder="https://...">
-
-            <label>Conteúdo formatado (cole direto do Word / Google Docs):</label>
-            <div id="editor-container"></div>
-            <input type="hidden" name="conteudo" id="conteudo_html">
-
-            <button type="submit" class="btn btn-primary" style="margin-top:18px;">Salvar e Gerar Link</button>
-        </form>
-    </div>
-    """
-  return render_template_string(
-      BASE_HTML, titulo_pagina="Novo Material", corpo=corpo
-  )
-
-
-@app.route("/editar/<int:item_id>", methods=["GET", "POST"])
-@admin_required
-def editar(item_id):
-  with get_db() as conn:
-    item = conn.execute(
-        "SELECT * FROM itens WHERE id = ?", (item_id,)
-    ).fetchone()
-    if not item:
-      return "Item não encontrado.", 404
-
-    if request.method == "POST":
-      if request.form.get("acao") == "excluir":
-        conn.execute("DELETE FROM itens WHERE id = ?", (item_id,))
-        flash("Material excluído.")
-        return redirect(url_for("index"))
-
-      titulo = request.form.get("titulo", "").strip()
-      categoria = (
-          request.form.get("categoria", "Legislação Tributária").strip()
-          or "Legislação Tributária"
-      )
-      resumo = request.form.get("resumo", "").strip()
-      conteudo = request.form.get("conteudo", "").strip()
-      link_externo = request.form.get("link_externo", "").strip()
-
-      conn.execute(
-          """UPDATE itens
-                   SET titulo = ?, categoria = ?, resumo = ?, conteudo = ?, link_externo = ?, atualizado_em = CURRENT_TIMESTAMP
-                   WHERE id = ?""",
-          (titulo, categoria, resumo, conteudo, link_externo, item_id),
-      )
-      flash("Atualizado com sucesso!")
-      return redirect(url_for("ver_item", slug=item["slug"]))
-
-  corpo = f"""
-    <div class="box-form">
-        <h2>Editar: {item['titulo']}</h2>
-        <form method="POST">
-            <label>Título:</label>
-            <input type="text" name="titulo" value="{item['titulo']}" required>
-
-            <label>Disciplina / Categoria:</label>
-            <input type="text" name="categoria" value="{item['categoria']}">
-
-            <label>Resumo curto:</label>
-            <input type="text" name="resumo" value="{item['resumo'] or ''}">
-
-            <label>Link externo (opcional):</label>
-            <input type="url" name="link_externo" value="{item['link_externo'] or ''}">
-
-            <label>Conteúdo formatado:</label>
-            <div id="editor-container">{item['conteudo']}</div>
-            <input type="hidden" name="conteudo" id="conteudo_html">
-
-            <div style="display:flex; justify-content:space-between; margin-top:18px;">
-                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-                <button type="submit" name="acao" value="excluir" class="btn btn-danger" onclick="return confirm('Excluir este material permanentemente?');">Excluir</button>
-            </div>
-        </form>
-    </div>
-    """
-  return render_template_string(BASE_HTML, titulo_pagina="Editar", corpo=corpo)
-
-
-init_db()
-
-if __name__ == "__main__":
-  port = int(os.environ.get("PORT", 5005))
-  print(f"\nPortal SEFAZ-AL iniciado! Acesse: http://127.0.0.1:{port}")
-  app.run(host="0.0.0.0", port=port, debug=False)
