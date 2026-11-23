@@ -122,10 +122,19 @@ def init_db():
                 banca_meta TEXT DEFAULT '',
                 enunciado_html TEXT NOT NULL,
                 gabarito TEXT DEFAULT '',
-                resolucao_html TEXT DEFAULT '',
+                bloco_a_html TEXT DEFAULT '',
+                bloco_b_html TEXT DEFAULT '',
+                bloco_c_html TEXT DEFAULT '',
+                bloco_d_html TEXT DEFAULT '',
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Garante migração segura caso a tabela exercicios já exista sem as colunas dos blocos A, B, C, D
+        colunas_existentes = [row[1] for row in conn.execute("PRAGMA table_info(exercicios)").fetchall()]
+        for col in ["bloco_a_html", "bloco_b_html", "bloco_c_html", "bloco_d_html"]:
+            if col not in colunas_existentes:
+                conn.execute(f"ALTER TABLE exercicios ADD COLUMN {col} TEXT DEFAULT ''")
 
         existe_info = conn.execute("SELECT 1 FROM info_concurso WHERE id = 1").fetchone()
         if not existe_info:
@@ -138,10 +147,9 @@ def init_db():
                 "Prova Objetiva: 160 itens (P1: 60 itens | P2: 100 itens)",
                 "A partir de R$ 9.500,00 + Produtividade / Gratificações",
                 "Nível Superior em qualquer área de formação",
-                "Clique em qualquer disciplina na tabela abaixo para abrir o edital verticalizado, resumos teóricos e exercícios comentados."
+                "Clique em qualquer disciplina na tabela abaixo para abrir o edital verticalizado, resumos teóricos e exercícios comentados (Protocolo v1.6)."
             ))
 
-        # Popula automaticamente os tópicos de Ciência de Dados caso ainda não existam
         existe_cd = conn.execute("SELECT 1 FROM topicos WHERE materia_slug = 'ciencia-de-dados'").fetchone()
         if not existe_cd:
             for idx, (titulo, nivel) in enumerate(TOPICOS_CIENCIA_DADOS, start=1):
@@ -200,7 +208,7 @@ BASE_HTML = """
         .btn-copy { background: #e2e8f0; color: #1e293b; font-size: 12px; padding: 5px 10px; }
         .btn-copy:hover { background: #cbd5e1; }
         
-        .container { max-width: 1100px; margin: 24px auto; padding: 0 20px; }
+        .container { max-width: 1120px; margin: 24px auto; padding: 0 20px; }
         .breadcrumb { font-size: 13px; color: #64748b; margin-bottom: 16px; }
         .breadcrumb a { color: var(--al-azul); text-decoration: none; font-weight: 600; }
 
@@ -230,7 +238,7 @@ BASE_HTML = """
         .link-disc:hover { text-decoration: underline; color: var(--al-azul-escuro); }
         .pill-num { display: inline-flex; align-items: center; justify-content: center; background: #f1f5f9; color: #64748b; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; font-weight: 600; margin-left: 6px; }
 
-        /* Árvore Verticalizada de Tópicos da Matéria (igual à imagem) */
+        /* Árvore Verticalizada de Tópicos */
         .box-materia { background: white; border-radius: 10px; border: 1px solid #cbd5e1; padding: 28px 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
         .materia-titulo { font-size: 28px; font-weight: 400; color: #1e293b; margin: 0 0 20px 0; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .lista-edital { list-style: none; padding: 0; margin: 0; }
@@ -246,24 +254,38 @@ BASE_HTML = """
         .tag-vazio { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
         .tag-ex { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
 
-        /* Cartões de Exercícios */
-        .exercicio-card { background: white; border: 1px solid #cbd5e1; border-left: 4px solid var(--al-azul); border-radius: 8px; padding: 20px 24px; margin-bottom: 18px; }
+        /* Cartões de Exercícios e os 4 Blocos v1.6 */
+        .exercicio-card { background: white; border: 1px solid #cbd5e1; border-left: 4px solid var(--al-azul); border-radius: 8px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
         .ex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; gap: 8px; }
         .ex-badge { background: #dbeafe; color: var(--al-azul-escuro); font-weight: 700; font-size: 12px; padding: 3px 10px; border-radius: 4px; }
-        .ex-resolucao { display: none; margin-top: 16px; padding: 16px 20px; background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #059669; border-radius: 6px; }
+        .ex-resolucao { display: none; margin-top: 18px; padding-top: 16px; border-top: 2px dashed #cbd5e1; }
+        
+        .bloco-card { border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; border: 1px solid #e2e8f0; }
+        .bloco-titulo { font-weight: 700; font-size: 13.5px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; }
+        .bloco-a { background: #eff6ff; border-left: 4px solid #2563eb; }
+        .bloco-a .bloco-titulo { color: #1e40af; }
+        .bloco-b { background: #f0fdf4; border-left: 4px solid #059669; }
+        .bloco-b .bloco-titulo { color: #166534; }
+        .bloco-c { background: #fefce8; border-left: 4px solid #ca8a04; }
+        .bloco-c .bloco-titulo { color: #854d0e; }
+        .bloco-d { background: #f8fafc; border-left: 4px solid #475569; }
+        .bloco-d .bloco-titulo { color: #1e293b; }
 
-        .box-form { background: white; padding: 28px; border-radius: 10px; border: 1px solid #e2e8f0; max-width: 880px; margin: 0 auto; }
-        label { display: block; font-weight: 600; margin-top: 14px; margin-bottom: 5px; font-size: 13px; }
+        .secao-form-bloco { border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-top: 16px; background: #f8fafc; }
+        .secao-form-bloco label { margin-top: 0; font-size: 14px; color: #002d62; }
+
+        .box-form { background: white; padding: 28px; border-radius: 10px; border: 1px solid #e2e8f0; max-width: 920px; margin: 0 auto; }
+        label { display: block; font-weight: 600; margin-top: 14px; margin-bottom: 6px; font-size: 13px; }
         input[type="text"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box; font-family: inherit; background: white; }
         
-        .editor-box { height: 280px; font-size: 15px; font-family: 'Segoe UI', Arial, sans-serif; background: white; }
-        .ql-toolbar.ql-snow { border-top-left-radius: 6px; border-top-right-radius: 6px; background: #f8fafc; border-color: #cbd5e1; }
-        .ql-container.ql-snow { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; border-color: #cbd5e1; }
+        .editor-box { height: 200px; font-size: 14.5px; font-family: 'Segoe UI', Arial, sans-serif; background: white; }
+        .ql-toolbar.ql-snow { border-top-left-radius: 6px; border-top-right-radius: 6px; background: #f1f5f9; border-color: #cbd5e1; }
+        .ql-container.ql-snow { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; border-color: #cbd5e1; background: white; }
 
         .conteudo-leitura { background: white; padding: 36px 44px; border-radius: 10px; border: 1px solid #e2e8f0; line-height: 1.65; font-size: 16px; overflow-x: auto; }
-        .conteudo-leitura p { margin: 0 0 12px 0; }
-        .conteudo-leitura table { border-collapse: collapse; width: 100%; margin: 16px 0; }
-        .conteudo-leitura table td, .conteudo-leitura table th { border: 1px solid #cbd5e1; padding: 8px 12px; }
+        .conteudo-leitura p, .bloco-card p { margin: 0 0 10px 0; }
+        .conteudo-leitura table, .bloco-card table { border-collapse: collapse; width: 100%; margin: 12px 0; background: white; }
+        .conteudo-leitura table td, .conteudo-leitura table th, .bloco-card table td, .bloco-card table th { border: 1px solid #cbd5e1; padding: 8px 12px; }
         .alerta { background: #fef3c7; color: #92400e; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; }
     </style>
 </head>
@@ -272,7 +294,7 @@ BASE_HTML = """
     <header>
         <div class="brand">
             <a href="/">🏛️ Central de Estudos • SEFAZ-AL</a>
-            <span>Edital Verticalizado, Teoria & Exercícios Comentados</span>
+            <span>Edital Verticalizado, Teoria & Exercícios Comentados (Protocolo v1.6)</span>
         </div>
         <div class="nav-actions">
             <a href="/" class="btn btn-outline">Início</a>
@@ -302,21 +324,19 @@ BASE_HTML = """
             box.style.display = (box.style.display === 'block') ? 'none' : 'block';
         }
 
-        // Inicializa editores ricos Quill na página (suporta 1 ou 2 editores na mesma tela)
         const editores = [];
         document.querySelectorAll('.quill-target').forEach(function(el) {
             const inputId = el.getAttribute('data-input');
             const quill = new Quill(el, {
                 theme: 'snow',
-                placeholder: 'Cole aqui o texto formatado do Word ou Google Docs (Ctrl + V)...',
+                placeholder: 'Cole aqui o conteúdo formatado gerado pela IA / Word / Docs (Ctrl + V)...',
                 modules: {
                     toolbar: [
                         [{ 'header': [1, 2, 3, false] }],
                         ['bold', 'italic', 'underline', 'strike'],
                         [{ 'color': [] }, { 'background': [] }],
                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                        [{ 'align': [] }],
-                        ['blockquote', 'link'],
+                        ['blockquote', 'code-block', 'link'],
                         ['clean']
                     ]
                 }
@@ -338,6 +358,32 @@ BASE_HTML = """
 </body>
 </html>
 """
+
+
+def renderizar_blocos_v16(ex):
+    """Renderiza visualmente os 4 blocos do Protocolo v1.6 de um exercício."""
+    gab_banner = ""
+    if ex["gabarito"]:
+        gab_banner = f'<div style="background:#166534; color:white; padding:8px 14px; border-radius:6px; font-weight:700; margin-bottom:14px; display:inline-block;">✅ Gabarito Oficial: {ex["gabarito"]}</div>'
+
+    blocos = [
+        ("bloco-a", "Bloco A — Catalogação e Rede de Interdependência no Edital", ex["bloco_a_html"]),
+        ("bloco-b", "Bloco B — Dissecação Profunda e Raciocínio (Padrão v1.6)", ex["bloco_b_html"]),
+        ("bloco-c", "Bloco C — Caderno Teórico Acumulado Sob Demanda (Sem Repetição — Padrão v1.6)", ex["bloco_c_html"]),
+        ("bloco-d", "Bloco D — Status e Evolução do Script Mestre (Protocolo v1.6)", ex["bloco_d_html"]),
+    ]
+
+    html_blocos = gab_banner
+    for classe, titulo, conteudo in blocos:
+        limpo = re.sub(r"<[^>]+>", "", conteudo or "").strip()
+        if limpo:
+            html_blocos += f"""
+            <div class="bloco-card {classe}">
+                <div class="bloco-titulo">{titulo}</div>
+                <div style="line-height:1.6;">{conteudo}</div>
+            </div>
+            """
+    return html_blocos
 
 
 @app.route("/")
@@ -529,7 +575,6 @@ def adicionar_topicos(slug):
             texto = linha.strip()
             if not texto:
                 continue
-            # Detecta o nível hierárquico pela numeração inicial (ex: 1. -> nível 0, 1.1. -> nível 1, 1.1.1. -> nível 2)
             m = re.match(r"^(\d+(?:\.\d+)*)\.?\s+", texto)
             nivel = 0
             if m:
@@ -582,7 +627,7 @@ def ver_teoria(topico_id):
         <div class="box-form">
             <h2>Editar Conteúdo Teórico: {topico['titulo']}</h2>
             <form method="POST" class="form-quill">
-                <div class="editor-box quill-target" data-input="teoria_html">{topico['teoria_html']}</div>
+                <div class="editor-box quill-target" data-input="teoria_html" style="height:360px;">{topico['teoria_html']}</div>
                 <input type="hidden" name="teoria_html" id="teoria_html">
                 <div style="margin-top:16px; display:flex; gap:10px;">
                     <button type="submit" class="btn btn-primary">Salvar Conteúdo Teórico</button>
@@ -631,13 +676,18 @@ def ver_exercicios(topico_id):
             banca_meta = request.form.get("banca_meta", "").strip()
             gabarito = request.form.get("gabarito", "").strip()
             enunciado_html = request.form.get("enunciado_html", "").strip()
-            resolucao_html = request.form.get("resolucao_html", "").strip()
+            bloco_a_html = request.form.get("bloco_a_html", "").strip()
+            bloco_b_html = request.form.get("bloco_b_html", "").strip()
+            bloco_c_html = request.form.get("bloco_c_html", "").strip()
+            bloco_d_html = request.form.get("bloco_d_html", "").strip()
 
             conn.execute(
-                "INSERT INTO exercicios (topico_id, banca_meta, enunciado_html, gabarito, resolucao_html) VALUES (?, ?, ?, ?, ?)",
-                (topico_id, banca_meta, enunciado_html, gabarito, resolucao_html)
+                """INSERT INTO exercicios
+                   (topico_id, banca_meta, enunciado_html, gabarito, bloco_a_html, bloco_b_html, bloco_c_html, bloco_d_html)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (topico_id, banca_meta, enunciado_html, gabarito, bloco_a_html, bloco_b_html, bloco_c_html, bloco_d_html)
             )
-            flash("Exercício adicionado ao tópico!")
+            flash("Exercício e Blocos v1.6 adicionados ao tópico!")
             return redirect(url_for("ver_exercicios", topico_id=topico_id))
 
         exercicios = conn.execute(
@@ -646,27 +696,29 @@ def ver_exercicios(topico_id):
 
     lista_ex_html = ""
     for idx, ex in enumerate(exercicios, start=1):
-        btn_del = ""
+        btn_edit_del = ""
         if session.get("logado"):
-            btn_del = f'<a href="/exercicio/{ex["id"]}/excluir" class="btn btn-copy" style="color:#dc2626;" onclick="return confirm(\'Excluir este exercício?\');">Excluir</a>'
+            btn_edit_del = f"""
+                <a href="/exercicio/{ex['id']}/editar" class="btn btn-copy">✏️ Editar</a>
+                <a href="/exercicio/{ex['id']}/excluir" class="btn btn-copy" style="color:#dc2626;" onclick="return confirm('Excluir este exercício?');">Excluir</a>
+            """
 
         meta_txt = f" • {ex['banca_meta']}" if ex["banca_meta"] else ""
-        gab_txt = f"<strong>Gabarito: {ex['gabarito']}</strong><hr style='border:none; border-top:1px solid #bbf7d0; margin:8px 0;'>" if ex["gabarito"] else ""
+        blocos_renderizados = renderizar_blocos_v16(ex)
 
         lista_ex_html += f"""
         <div class="exercicio-card" id="ex-{ex['id']}">
             <div class="ex-header">
                 <span class="ex-badge">Questão {idx:02d}{meta_txt}</span>
-                <div style="display:flex; gap:8px;">
-                    <a href="/exercicio/{ex['id']}" class="btn btn-copy" title="Abrir página individual da questão comentada">Abrir Link da Resolução ↗</a>
-                    <button type="button" class="btn btn-verde" onclick="alternarResolucao({ex['id']})">👁️ Ver Resolução Comentada</button>
-                    {btn_del}
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <a href="/exercicio/{ex['id']}" class="btn btn-copy" title="Abrir página individual com link próprio">Abrir Link da Resolução ↗</a>
+                    <button type="button" class="btn btn-verde" onclick="alternarResolucao({ex['id']})">👁️ Ver Resolução Comentada (Blocos A–D)</button>
+                    {btn_edit_del}
                 </div>
             </div>
             <div style="line-height:1.6;">{ex['enunciado_html']}</div>
             <div class="ex-resolucao" id="res-{ex['id']}">
-                {gab_txt}
-                <div>{ex['resolucao_html'] or 'Sem comentário adicional.'}</div>
+                {blocos_renderizados}
             </div>
         </div>
         """
@@ -678,7 +730,7 @@ def ver_exercicios(topico_id):
     if session.get("logado"):
         form_novo_ex = f"""
         <div class="box-form" style="margin-top:28px; max-width:100%;">
-            <h3 style="margin-top:0; color:#002d62;">+ Adicionar Exercício Comentado ao Tópico</h3>
+            <h3 style="margin-top:0; color:#002d62;">+ Adicionar Exercício Comentado ao Tópico (Protocolo v1.6)</h3>
             <form method="POST" class="form-quill">
                 <div style="display:grid; grid-template-columns: 2fr 1fr; gap:12px;">
                     <div>
@@ -691,15 +743,35 @@ def ver_exercicios(topico_id):
                     </div>
                 </div>
 
-                <label>Enunciado e Alternativas (cole formatado do Word/site):</label>
-                <div class="editor-box quill-target" data-input="enunciado_html" style="height:180px;"></div>
+                <label>Enunciado e Alternativas da Questão:</label>
+                <div class="editor-box quill-target" data-input="enunciado_html" style="height:170px;"></div>
                 <input type="hidden" name="enunciado_html" id="enunciado_html">
 
-                <label>Resolução Comentada:</label>
-                <div class="editor-box quill-target" data-input="resolucao_html" style="height:180px;"></div>
-                <input type="hidden" name="resolucao_html" id="resolucao_html">
+                <div class="secao-form-bloco" style="border-left: 4px solid #2563eb;">
+                    <label>Bloco A — Catalogação e Rede de Interdependência no Edital (Copiar e Colar no Portal):</label>
+                    <div class="editor-box quill-target" data-input="bloco_a_html" style="height:160px;"></div>
+                    <input type="hidden" name="bloco_a_html" id="bloco_a_html">
+                </div>
 
-                <button type="submit" class="btn btn-primary" style="margin-top:16px;">Salvar Exercício e Gerar Link de Resolução</button>
+                <div class="secao-form-bloco" style="border-left: 4px solid #059669;">
+                    <label>Bloco B — Dissecação Profunda e Raciocínio (Copiar e Colar no Portal — Padrão v1.6):</label>
+                    <div class="editor-box quill-target" data-input="bloco_b_html" style="height:220px;"></div>
+                    <input type="hidden" name="bloco_b_html" id="bloco_b_html">
+                </div>
+
+                <div class="secao-form-bloco" style="border-left: 4px solid #ca8a04;">
+                    <label>Bloco C — Caderno Teórico Acumulado Sob Demanda (Sem Repetição — Padrão v1.6):</label>
+                    <div class="editor-box quill-target" data-input="bloco_c_html" style="height:200px;"></div>
+                    <input type="hidden" name="bloco_c_html" id="bloco_c_html">
+                </div>
+
+                <div class="secao-form-bloco" style="border-left: 4px solid #475569;">
+                    <label>Bloco D — Status e Evolução do Script Mestre (Protocolo v1.6):</label>
+                    <div class="editor-box quill-target" data-input="bloco_d_html" style="height:150px;"></div>
+                    <input type="hidden" name="bloco_d_html" id="bloco_d_html">
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="margin-top:20px; padding:12px 20px; font-size:15px;">Salvar Exercício e Gerar Link de Resolução</button>
             </form>
         </div>
         """
@@ -727,23 +799,116 @@ def ver_exercicio_individual(ex_id):
             return "Exercício não encontrado.", 404
         topico = conn.execute("SELECT * FROM topicos WHERE id = ?", (ex["topico_id"],)).fetchone()
 
+    btn_edit = ""
+    if session.get("logado"):
+        btn_edit = f'<a href="/exercicio/{ex["id"]}/editar" class="btn btn-primary">✏️ Editar Blocos</a>'
+
+    blocos_renderizados = renderizar_blocos_v16(ex)
+
     corpo = f"""
     <div class="breadcrumb">
         <a href="/">Início</a> / <a href="/materia/{topico['materia_slug']}">{topico['materia_nome']}</a> / <a href="/topico/{topico['id']}/exercicios">{topico['titulo']}</a> / Questão #{ex['id']}
     </div>
     <div class="conteudo-leitura">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-            <span class="ex-badge">{ex['banca_meta'] or 'Questão Comentada'}</span>
-            <button type="button" class="btn btn-copy" onclick="copiarLink(window.location.href)">Copiar Link desta Questão</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+            <span class="ex-badge">{ex['banca_meta'] or 'Questão Comentada • Protocolo v1.6'}</span>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-copy" onclick="copiarLink(window.location.href)">Copiar Link desta Questão</button>
+                {btn_edit}
+            </div>
         </div>
-        <div>{ex['enunciado_html']}</div>
-        <div style="margin-top:24px; padding:20px; background:#f0fdf4; border:1px solid #bbf7d0; border-left:4px solid #059669; border-radius:6px;">
-            <h3 style="margin-top:0; color:#166534;">Gabarito & Resolução Comentada {('(' + ex['gabarito'] + ')') if ex['gabarito'] else ''}</h3>
-            <div>{ex['resolucao_html']}</div>
+        <div style="margin-bottom:24px; padding-bottom:18px; border-bottom:2px solid #e2e8f0;">
+            {ex['enunciado_html']}
         </div>
+        {blocos_renderizados}
     </div>
     """
     return render_template_string(BASE_HTML, titulo_pagina=f"Questão #{ex['id']}", corpo=corpo)
+
+
+@app.route("/exercicio/<int:ex_id>/editar", methods=["GET", "POST"])
+@admin_required
+def editar_exercicio(ex_id):
+    init_db()
+    with get_db() as conn:
+        ex = conn.execute("SELECT * FROM exercicios WHERE id = ?", (ex_id,)).fetchone()
+        if not ex:
+            return "Exercício não encontrado.", 404
+        topico = conn.execute("SELECT * FROM topicos WHERE id = ?", (ex["topico_id"],)).fetchone()
+
+        if request.method == "POST":
+            conn.execute("""
+                UPDATE exercicios
+                SET banca_meta = ?, gabarito = ?, enunciado_html = ?,
+                    bloco_a_html = ?, bloco_b_html = ?, bloco_c_html = ?, bloco_d_html = ?
+                WHERE id = ?
+            """, (
+                request.form.get("banca_meta", "").strip(),
+                request.form.get("gabarito", "").strip(),
+                request.form.get("enunciado_html", "").strip(),
+                request.form.get("bloco_a_html", "").strip(),
+                request.form.get("bloco_b_html", "").strip(),
+                request.form.get("bloco_c_html", "").strip(),
+                request.form.get("bloco_d_html", "").strip(),
+                ex_id
+            ))
+            flash("Exercício e Blocos v1.6 atualizados!")
+            return redirect(url_for("ver_exercicio_individual", ex_id=ex_id))
+
+    corpo = f"""
+    <div class="breadcrumb">
+        <a href="/">Início</a> / <a href="/materia/{topico['materia_slug']}">{topico['materia_nome']}</a> / <a href="/topico/{topico['id']}/exercicios">Exercícios</a> / Editar Questão #{ex['id']}
+    </div>
+    <div class="box-form" style="max-width:100%;">
+        <h2 style="margin-top:0; color:#002d62;">✏️ Editar Exercício & Blocos v1.6</h2>
+        <form method="POST" class="form-quill">
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:12px;">
+                <div>
+                    <label>Banca / Órgão / Ano:</label>
+                    <input type="text" name="banca_meta" value="{ex['banca_meta'] or ''}">
+                </div>
+                <div>
+                    <label>Gabarito Oficial:</label>
+                    <input type="text" name="gabarito" value="{ex['gabarito'] or ''}">
+                </div>
+            </div>
+
+            <label>Enunciado e Alternativas:</label>
+            <div class="editor-box quill-target" data-input="enunciado_html" style="height:170px;">{ex['enunciado_html']}</div>
+            <input type="hidden" name="enunciado_html" id="enunciado_html">
+
+            <div class="secao-form-bloco" style="border-left: 4px solid #2563eb;">
+                <label>Bloco A — Catalogação e Rede de Interdependência no Edital:</label>
+                <div class="editor-box quill-target" data-input="bloco_a_html" style="height:160px;">{ex['bloco_a_html'] or ''}</div>
+                <input type="hidden" name="bloco_a_html" id="bloco_a_html">
+            </div>
+
+            <div class="secao-form-bloco" style="border-left: 4px solid #059669;">
+                <label>Bloco B — Dissecação Profunda e Raciocínio (Padrão v1.6):</label>
+                <div class="editor-box quill-target" data-input="bloco_b_html" style="height:220px;">{ex['bloco_b_html'] or ''}</div>
+                <input type="hidden" name="bloco_b_html" id="bloco_b_html">
+            </div>
+
+            <div class="secao-form-bloco" style="border-left: 4px solid #ca8a04;">
+                <label>Bloco C — Caderno Teórico Acumulado Sob Demanda (Padrão v1.6):</label>
+                <div class="editor-box quill-target" data-input="bloco_c_html" style="height:200px;">{ex['bloco_c_html'] or ''}</div>
+                <input type="hidden" name="bloco_c_html" id="bloco_c_html">
+            </div>
+
+            <div class="secao-form-bloco" style="border-left: 4px solid #475569;">
+                <label>Bloco D — Status e Evolução do Script Mestre (Protocolo v1.6):</label>
+                <div class="editor-box quill-target" data-input="bloco_d_html" style="height:150px;">{ex['bloco_d_html'] or ''}</div>
+                <input type="hidden" name="bloco_d_html" id="bloco_d_html">
+            </div>
+
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                <a href="/exercicio/{ex['id']}" class="btn btn-copy">Cancelar</a>
+            </div>
+        </form>
+    </div>
+    """
+    return render_template_string(BASE_HTML, titulo_pagina=f"Editar Questão #{ex['id']}", corpo=corpo)
 
 
 @app.route("/exercicio/<int:ex_id>/excluir")
