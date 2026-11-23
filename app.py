@@ -53,7 +53,7 @@ def init_db():
               "Auditor Fiscal da Receita Estadual / Auditor de Finanças e"
               " Controle",
               "Prova Objetiva: 160 itens (P1: 60 itens | P2: 100 itens)",
-              "A partir de R\$ 9.500,00 + Produtividade / Gratificações",
+              "A partir de R$ 9.500,00 + Produtividade / Gratificações",
               "Nível Superior em qualquer área de formação",
               "Clique em uma disciplina na tabela abaixo para filtrar os"
               " resumos e links cadastrados daquela matéria.",
@@ -74,7 +74,7 @@ def gerar_slug(texto):
 
 
 def limpar_tags_html(texto_html):
-  limpo = re.sub(r"<[^>]+>", " ", texto_html)
+  limpo = re.sub(r"<[^>]+>", " ", texto_html or "")
   limpo = re.sub(r"\s+", " ", limpo).strip()
   return limpo
 
@@ -130,7 +130,6 @@ BASE_HTML = """
         
         .container { max-width: 1100px; margin: 24px auto; padding: 0 20px; }
         
-        /* Painel Superior de Informações do Concurso */
         .painel-concurso { background: white; border-radius: 10px; border: 1px solid #cbd5e1; border-top: 4px solid var(--al-azul); padding: 22px 24px; margin-bottom: 22px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
         .painel-topo { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
         .painel-topo h2 { margin: 0; font-size: 18px; color: var(--al-azul-escuro); display: flex; align-items: center; gap: 8px; }
@@ -142,7 +141,6 @@ BASE_HTML = """
         .info-valor { font-size: 13.5px; font-weight: 600; color: #1e293b; line-height: 1.4; }
         .aviso-concurso { margin-top: 14px; background: #eff6ff; border-left: 4px solid var(--al-azul); padding: 10px 14px; font-size: 13px; color: #1e3a8a; border-radius: 0 6px 6px 0; }
 
-        /* Quadro de Peso e Distribuição das Disciplinas */
         .quadro-disciplinas { background: white; border-radius: 10px; border: 1px solid #cbd5e1; padding: 22px 24px; margin-bottom: 26px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); overflow-x: auto; }
         .quadro-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
         .quadro-header h2 { margin: 0; font-size: 19px; color: #1e293b; font-weight: 600; }
@@ -297,7 +295,7 @@ DISCIPLINAS_EDITAL = [
         False,
     ),
     ("", "Reforma Tributária", "15", "15% de P2", False, False),
-    ("", "Auditoría Fiscal", "15", "15% de P2", False, False),
+    ("", "Auditoria Fiscal", "15", "15% de P2", False, False),
     (
         "",
         "Ciência de Dados",
@@ -311,6 +309,7 @@ DISCIPLINAS_EDITAL = [
 
 @app.route("/")
 def index():
+  init_db()
   busca = request.args.get("q", "").strip()
   cat = request.args.get("cat", "").strip()
   with get_db() as conn:
@@ -376,7 +375,6 @@ def index():
     </div>
     """
 
-  # Monta as linhas da tabela idêntica à imagem
   linhas_tabela = ""
   for (
       prova,
@@ -391,14 +389,13 @@ def index():
       classes.append("destaque-materia")
     if divisor_p2:
       classes.append("divisor-p2")
-    class_attr = f' class="{" ".join(classes)}"' if classes else ""
+    class_attr = ' class="' + " ".join(classes) + '"' if classes else ""
 
     prova_html = f"<strong>{prova}</strong>" if prova else ""
-    nome_clean = disciplina.replace("Auditoría", "Auditoria")
     linhas_tabela += f"""
         <tr{class_attr}>
             <td>{prova_html}</td>
-            <td><a href="/?cat={nome_clean}#materiais" class="link-disc" title="Filtrar materiais de {nome_clean}">{nome_clean}</a></td>
+            <td><a href="/?cat={disciplina}#materiais" class="link-disc" title="Filtrar materiais de {disciplina}">{disciplina}</a></td>
             <td>{qtd}</td>
             <td>{part} <span class="pill-num">1</span></td>
         </tr>
@@ -510,6 +507,7 @@ def index():
 @app.route("/editar-painel", methods=["GET", "POST"])
 @admin_required
 def editar_painel():
+  init_db()
   with get_db() as conn:
     if request.method == "POST":
       conn.execute(
@@ -561,3 +559,227 @@ def editar_painel():
   return render_template_string(
       BASE_HTML, titulo_pagina="Editar Painel SEFAZ-AL", corpo=corpo
   )
+
+
+@app.route("/p/<slug>")
+def ver_item(slug):
+  init_db()
+  with get_db() as conn:
+    item = conn.execute(
+        "SELECT * FROM itens WHERE slug = ?", (slug,)
+    ).fetchone()
+  if not item:
+    return "Página não encontrada.", 404
+
+  url_direta = request.host_url.rstrip("/") + url_for(
+      "ver_item", slug=item["slug"]
+  )
+  acoes = (
+      '<button type="button" class="btn btn-copy"'
+      f" onclick=\"copiarLink('{url_direta}')\">Copiar Link desta"
+      " Página</button>"
+  )
+  if item["link_externo"]:
+    acoes += (
+        f' <a href="{item["link_externo"]}" target="_blank" class="btn'
+        ' btn-primary">Acessar Link Externo ↗</a>'
+    )
+  if session.get("logado"):
+    acoes += (
+        f' <a href="/editar/{item["id"]}" class="btn btn-copy">Editar'
+        " Conteúdo</a>"
+    )
+
+  corpo = f"""
+    <div style="margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+            <span class="badge">{item['categoria']}</span>
+            <h1 style="margin:4px 0; color:#002d62;">{item['titulo']}</h1>
+            <small style="color:#64748b;">Link direto: <code>{url_direta}</code></small>
+        </div>
+        <div>{acoes}</div>
+    </div>
+    <div class="conteudo-leitura">{item['conteudo']}</div>
+    """
+  return render_template_string(
+      BASE_HTML, titulo_pagina=item["titulo"], corpo=corpo
+  )
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+  if request.method == "POST":
+    if request.form.get("senha") == SENHA_ADMIN:
+      session["logado"] = True
+      return redirect(url_for("index"))
+    flash("Senha incorreta.")
+  corpo = """
+    <div class="box-form" style="max-width:400px;">
+        <h2>Acesso Administrativo • SEFAZ-AL</h2>
+        <form method="POST">
+            <label>Senha de Edição:</label>
+            <input type="password" name="senha" required autofocus>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px; width:100%;">Entrar</button>
+        </form>
+    </div>
+    """
+  return render_template_string(BASE_HTML, titulo_pagina="Login", corpo=corpo)
+
+
+@app.route("/logout")
+def logout():
+  session.clear()
+  return redirect(url_for("index"))
+
+
+@app.route("/novo", methods=["GET", "POST"])
+@admin_required
+def novo():
+  init_db()
+  if request.method == "POST":
+    titulo = request.form.get("titulo", "").strip()
+    categoria = (
+        request.form.get("categoria", "Legislação Tributária Estadual").strip()
+        or "Legislação Tributária Estadual"
+    )
+    resumo = request.form.get("resumo", "").strip()
+    conteudo = request.form.get("conteudo", "").strip()
+    link_externo = request.form.get("link_externo", "").strip()
+    slug_base = gerar_slug(request.form.get("slug") or titulo)
+
+    with get_db() as conn:
+      slug = slug_base
+      contador = 2
+      while conn.execute(
+          "SELECT 1 FROM itens WHERE slug = ?", (slug,)
+      ).fetchone():
+        slug = f"{slug_base}-{contador}"
+        contador += 1
+
+      conn.execute(
+          "INSERT INTO itens (titulo, slug, categoria, resumo, conteudo,"
+          " link_externo) VALUES (?, ?, ?, ?, ?, ?)",
+          (titulo, slug, categoria, resumo, conteudo, link_externo),
+      )
+    flash("Material publicado com sucesso!")
+    return redirect(url_for("ver_item", slug=slug))
+
+  opcoes_disc = "\n".join(
+      [f'<option value="{d[1]}">{d[1]}</option>' for d in DISCIPLINAS_EDITAL]
+  )
+
+  corpo = f"""
+    <div class="box-form">
+        <h2>Cadastrar Novo Material • SEFAZ-AL</h2>
+        <form method="POST">
+            <label>Título:</label>
+            <input type="text" name="titulo" placeholder="Ex: Resumo de Ciência de Dados - Modelos Supervisionados" required>
+
+            <label>Link personalizado (opcional - ex: ciencia-de-dados-resumo):</label>
+            <input type="text" name="slug" placeholder="Deixe em branco para gerar automaticamente pelo título">
+
+            <label>Disciplina (vinculada ao Quadro do Edital):</label>
+            <select name="categoria">
+                {opcoes_disc}
+                <option value="Geral / Avisos">Geral / Avisos</option>
+            </select>
+
+            <label>Resumo curto (aparece no cartão da página inicial):</label>
+            <input type="text" name="resumo" placeholder="Breve descrição do conteúdo">
+
+            <label>Link externo de destino (opcional):</label>
+            <input type="url" name="link_externo" placeholder="https://...">
+
+            <label>Conteúdo formatado (cole direto do Word / Google Docs):</label>
+            <div id="editor-container"></div>
+            <input type="hidden" name="conteudo" id="conteudo_html">
+
+            <button type="submit" class="btn btn-primary" style="margin-top:18px;">Salvar e Gerar Link</button>
+        </form>
+    </div>
+    """
+  return render_template_string(
+      BASE_HTML, titulo_pagina="Novo Material", corpo=corpo
+  )
+
+
+@app.route("/editar/<int:item_id>", methods=["GET", "POST"])
+@admin_required
+def editar(item_id):
+  init_db()
+  with get_db() as conn:
+    item = conn.execute(
+        "SELECT * FROM itens WHERE id = ?", (item_id,)
+    ).fetchone()
+    if not item:
+      return "Item não encontrado.", 404
+
+    if request.method == "POST":
+      if request.form.get("acao") == "excluir":
+        conn.execute("DELETE FROM itens WHERE id = ?", (item_id,))
+        flash("Material excluído.")
+        return redirect(url_for("index"))
+
+      titulo = request.form.get("titulo", "").strip()
+      categoria = (
+          request.form.get("categoria", "Legislação Tributária Estadual").strip()
+          or "Legislação Tributária Estadual"
+      )
+      resumo = request.form.get("resumo", "").strip()
+      conteudo = request.form.get("conteudo", "").strip()
+      link_externo = request.form.get("link_externo", "").strip()
+
+      conn.execute(
+          """UPDATE itens
+                   SET titulo = ?, categoria = ?, resumo = ?, conteudo = ?, link_externo = ?, atualizado_em = CURRENT_TIMESTAMP
+                   WHERE id = ?""",
+          (titulo, categoria, resumo, conteudo, link_externo, item_id),
+      )
+      flash("Atualizado com sucesso!")
+      return redirect(url_for("ver_item", slug=item["slug"]))
+
+  opcoes_disc = ""
+  for d in DISCIPLINAS_EDITAL:
+    sel = " selected" if item["categoria"] == d[1] else ""
+    opcoes_disc += f'<option value="{d[1]}"{sel}>{d[1]}</option>\n'
+
+  sel_geral = " selected" if item["categoria"] == "Geral / Avisos" else ""
+
+  corpo = f"""
+    <div class="box-form">
+        <h2>Editar: {item['titulo']}</h2>
+        <form method="POST">
+            <label>Título:</label>
+            <input type="text" name="titulo" value="{item['titulo']}" required>
+
+            <label>Disciplina (vinculada ao Quadro do Edital):</label>
+            <select name="categoria">
+                {opcoes_disc}
+                <option value="Geral / Avisos"{sel_geral}>Geral / Avisos</option>
+            </select>
+
+            <label>Resumo curto:</label>
+            <input type="text" name="resumo" value="{item['resumo'] or ''}">
+
+            <label>Link externo (opcional):</label>
+            <input type="url" name="link_externo" value="{item['link_externo'] or ''}">
+
+            <label>Conteúdo formatado:</label>
+            <div id="editor-container">{item['conteudo']}</div>
+            <input type="hidden" name="conteudo" id="conteudo_html">
+
+            <div style="display:flex; justify-content:space-between; margin-top:18px;">
+                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                <button type="submit" name="acao" value="excluir" class="btn btn-danger" onclick="return confirm('Excluir este material permanentemente?');">Excluir</button>
+            </div>
+        </form>
+    </div>
+    """
+  return render_template_string(BASE_HTML, titulo_pagina="Editar", corpo=corpo)
+
+
+if __name__ == "__main__":
+  init_db()
+  port = int(os.environ.get("PORT", 5005))
+  print(f"\nPortal SEFAZ-AL iniciado! Acesse: http://127.0.0.1:{port}")
+  app.run(host="0.0.0.0", port=port, debug=False)
